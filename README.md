@@ -37,6 +37,23 @@ var LivePPT = new LivePPT(
   'http://127.0.0.1:8081/newppt/newppt.html?isLoadPageController=true',
 );
 
+LivePPT.addEvent(function(e) {
+  // 鼠标在iframe之外的区域打开才OK
+  switch(e.type) {
+    case 'keydown':
+      console.log('监听到键盘事件', e);
+      var ele = LivePPT.getIframeEle('ppt-h5', 'customController_skipSlide');
+      if (e.keyCode === 39) {
+        sendPPTEvent(Number(ele.value));
+      } else if (e.keyCode === 37) {
+        sendPPTEvent(Number(ele.value) - 2);
+      }
+      break;
+    default:
+      break;
+  }
+});
+
 LivePPT.receiveEvent('http://127.0.0.1:8081', function(res) {
   ws.send(JSON.stringify({
     roleType: 2,
