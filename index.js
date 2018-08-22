@@ -46,6 +46,17 @@
     return Object.prototype.toString.call(variable) === '[object Function]';
   }
 
+  function matchNumber(str) {
+    var ary = [];
+    str.replace(/\d+/g, function () {
+      //调用方法时内部会产生 this 和 arguments
+      ary.push(Number(arguments[0]));
+      //查找数字后，可以对数字进行其他操作
+      return arguments[0];
+    })
+    return ary;
+  };
+
   var EventUtil = function () {
     function getByid(id) {
       return document.getElementById(id);
@@ -131,9 +142,21 @@
       $: getByid
     }
   }();
+
+  function getIframeEle(iframeId, id){
+    var ele = null;
+    if(document.frames){
+      ele = document.frames[iframeId].document.getElementById(id);
+    }else{
+      ele = document.getElementById(iframeId).contentWindow.document.getElementById(id);
+    }
+    return ele;
+  }
   
-  function LivePPT(ele, src) {
+  function LivePPT(ele, src, role) {
     if (ele && src) {
+      console.log(ele.clientWidth, ele.clientHeight);
+      ele.height = ele.clientWidth / (16 / 9);
       ele.src = src;
     }
     
@@ -156,6 +179,9 @@
         }
       },
       jumpPage: function(page) {
+        if (role === 'student') {
+          this.hideCustomPage();
+        }
         $('#customController_skipSlide').val(page);
         window.GLOBAL.ServiceNewPptAynamicPPT.clearOldSlideInfo();
         window.GLOBAL.ServiceNewPptAynamicPPT.playbackController.gotoTimestamp(Number($('#customController_skipSlide').val()) - 1, 0, 0, !0, {
@@ -173,15 +199,19 @@
           }
         }, 200);
       },
-      addEvent: function() {
+      addEvent: function(callback) {
         function listenerEvent(e) {
           console.log(e.isTrusted, e.type, e);
+          if (isFunction(callback)) {
+            callback(e);
+          }
           if (e.isTrusted) {
             console.log(e.target.id)
           }
         }
         EventUtil.add(window, 'click', listenerEvent, false)
         EventUtil.add(window, 'mousedown', listenerEvent, false)
+        EventUtil.add(window, 'keydown', listenerEvent, false)
       },
       receiveEvent: function(origin, callback) {
         function listenerMessage(e) {
@@ -195,7 +225,9 @@
           }
         }
         EventUtil.add(window, "message", listenerMessage, false);
-      }
+      },
+      getIframeEle: getIframeEle,
+      matchNumber: matchNumber,
     }
   }
 
