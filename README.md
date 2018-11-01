@@ -33,8 +33,9 @@ LivePPT.receiveEvent(iframeOrigin, function(res) {
 
 ```js
 var LivePPT = new LivePPT(
-  document.getElementById('ppt-h5'),
-  `${pptOrigin}/newppt/newppt.html?isLoadPageController=true`,
+  'teacher',
+  'uskid-ppt',
+  pptOrigin + '/newppt.html?isLoadPageController=true',
 );
 
 LivePPT.addEvent(function(e) {
@@ -84,7 +85,8 @@ const receivePptMsg = (message) => {
 
 ```js
 var LivePPT = new LivePPT(
-  document.getElementById('ppt-h5'),
-  `${pptOrigin}/newppt/newppt.html?isLoadPageController=true&hideCustomPage=true`,
+  'student',
+  'uskid-ppt',
+  pptOrigin + '/newppt.html?isLoadPageController=true',
 );
 ```
