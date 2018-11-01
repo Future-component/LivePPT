@@ -14,6 +14,7 @@
  * 4.如果用户断开之后如何回到上一步上课状态
  * 5.如何处理不同角色PPT的样式
  * 6.PPT转H5本身的问题严重
+ * 7.PPT转换是否支持视频和音频
  */
 
 (function(global, factory) {
@@ -58,45 +59,45 @@
   };
 
   var EventUtil = function () {
-    function getByid(id) {
+    function getById(id) {
       return document.getElementById(id);
     };
-    // written by Dean Edwards, 2005 
-    // with input from Tino Zijdel, Matthias Miller, Diego Perini 
+    // written by Dean Edwards, 2005
+    // with input from Tino Zijdel, Matthias Miller, Diego Perini
 
-    // http://dean.edwards.name/weblog/2005/10/add-event/ 
+    // http://dean.edwards.name/weblog/2005/10/add-event/
 
     function addEvent(element, type, handler) {
       if (element.addEventListener) {
         element.addEventListener(type, handler, false);
       } else {
-        // assign each event handler a unique ID 
+        // assign each event handler a unique ID
         if (!handler.$$guid) handler.$$guid = addEvent.guid++;
-        // create a hash table of event types for the element 
+        // create a hash table of event types for the element
         if (!element.events) element.events = {};
-        // create a hash table of event handlers for each element/event pair 
+        // create a hash table of event handlers for each element/event pair
         var handlers = element.events[type];
         if (!handlers) {
           handlers = element.events[type] = {};
-          // store the existing event handler (if there is one) 
+          // store the existing event handler (if there is one)
           if (element["on" + type]) {
             handlers[0] = element["on" + type];
           }
         }
-        // store the event handler in the hash table 
+        // store the event handler in the hash table
         handlers[handler.$$guid] = handler;
-        // assign a global event handler to do all the work 
+        // assign a global event handler to do all the work
         element["on" + type] = handleEvent;
       }
     };
-    // a counter used to create unique IDs 
+    // a counter used to create unique IDs
     addEvent.guid = 1;
 
     function removeEvent(element, type, handler) {
       if (element.removeEventListener) {
         element.removeEventListener(type, handler, false);
       } else {
-        // delete the event handler from the hash table 
+        // delete the event handler from the hash table
         if (element.events && element.events[type]) {
           delete element.events[type][handler.$$guid];
         }
@@ -105,11 +106,11 @@
 
     function handleEvent(event) {
       var returnValue = true;
-      // grab the event object (IE uses a global event object) 
+      // grab the event object (IE uses a global event object)
       event = event || fixEvent(((this.ownerDocument || this.document || this).parentWindow || window).event);
-      // get a reference to the hash table of event handlers 
+      // get a reference to the hash table of event handlers
       var handlers = this.events[event.type];
-      // execute each event handler 
+      // execute each event handler
       for (var i in handlers) {
         this.$$handleEvent = handlers[i];
         if (this.$$handleEvent(event) === false) {
@@ -120,7 +121,7 @@
     };
 
     function fixEvent(event) {
-      // add W3C standard event methods 
+      // add W3C standard event methods
       event.preventDefault = fixEvent.preventDefault;
       event.stopPropagation = fixEvent.stopPropagation;
       return event;
@@ -132,14 +133,10 @@
       this.cancelBubble = true;
     };
 
-    function tableAddEvent() {
-
-    };
-
     return {
       add: addEvent,
       remove: removeEvent,
-      $: getByid
+      $: getById
     }
   }();
 
@@ -152,42 +149,67 @@
     }
     return ele;
   }
-  
-  function LivePPT(ele, src, role) {
+
+  function LivePPT(source, id, src){
+    var ele = EventUtil.$(id);
     if (ele && src) {
-      console.log(ele.clientWidth, ele.clientHeight);
-      ele.height = ele.clientWidth / (16 / 9);
+      var width = ele.clientWidth;
+      ele.height = width / (16 / 9);
       ele.src = src;
     }
-    
+
     return {
       init: function(res) {
         if (res.source === 'tk_dynamicPPT') {
           this.action(res.data);
         }
       },
+
       action: function(res) {
         switch(res.action) {
           case 'slideChangeEvent':
-            this.jumpPage(res.slide + res.stepTotal);
+            this.slideChangeEvent(res);
             break;
           case 'clickNewpptTriggerEvent':
             // tky课件会自动同步事件
             break;
-          default: 
+          default:
             break;
         }
       },
-      jumpPage: function(page) {
-        if (role === 'student') {
-          this.hideCustomPage();
+
+      slideChangeEvent: function(res) {
+        if (res.slide) {
+          this.jumpPage(res.slide + res.stepTotal);
+        } else if (res.eventType) {
+          var skipSlideEle = EventUtil.$('customController_skipSlide');
+          var totalSlideSpanEle = EventUtil.$('customController_totalSlideSpan');
+          var slide = Number(skipSlideEle.value);
+          var totalPage = matchNumber(totalSlideSpanEle.innerText)[0];
+          if (res.eventType === 'next') {
+          } else if (res.eventType === 'prev') {
+            slide = slide - 2;
+          }
+          if (slide < 0 || slide > totalPage - 1) {
+            console.error('非法输入')
+          } else {
+            this.jumpPage(slide + res.stepTotal);
+          }
         }
-        $('#customController_skipSlide').val(page);
+      },
+
+      jumpPage: function(page) {
+        var skipEle = EventUtil.$('customController_skipSlide');
+        skipEle.innerText = page;
         window.GLOBAL.ServiceNewPptAynamicPPT.clearOldSlideInfo();
-        window.GLOBAL.ServiceNewPptAynamicPPT.playbackController.gotoTimestamp(Number($('#customController_skipSlide').val()) - 1, 0, 0, !0, {
+        window.GLOBAL.ServiceNewPptAynamicPPT.playbackController.gotoTimestamp(Number(page) - 1, 0, 0, !0, {
           initiative: !0
         })
+        if (window.location.href.indexOf('hideCustomPage=true') > -1) {
+          this.hideCustomPage();
+        }
       },
+
       hideCustomPage: function() {
         var timer = setInterval(function() {
           var ele = document.getElementById("customPageController");
@@ -199,9 +221,15 @@
           }
         }, 200);
       },
+
+      getSkipSlideElement: function() {
+        return getIframeEle(id, 'customController_skipSlide');
+      },
+
       addEvent: function(callback) {
+        console.log(`%c ${source} addEvent`,'background:#aaa;color:#bada55');
         function listenerEvent(e) {
-          console.log(e.isTrusted, e.type, e);
+          console.log(`%c isTrusted: ${e.isTrusted}`,'background:#aaa;color:#000000');
           if (isFunction(callback)) {
             callback(e);
           }
@@ -209,14 +237,16 @@
             console.log(e.target.id)
           }
         }
-        EventUtil.add(window, 'click', listenerEvent, false)
-        EventUtil.add(window, 'mousedown', listenerEvent, false)
+        EventUtil.add(EventUtil.$(id), 'click', listenerEvent, false)
+        EventUtil.add(EventUtil.$(id), 'mousedown', listenerEvent, false)
         EventUtil.add(window, 'keydown', listenerEvent, false)
       },
+
       receiveEvent: function(origin, callback) {
+        console.log(`%c ${source} receiveEvent ${origin}`,'background:#aaa;color:#bada55');
         function listenerMessage(e) {
-          console.log('listenerMessage', e)
-          if (e.origin !== origin) {
+          console.log(`%c ${source} listenerMessage ${origin}`,'background:#aaa;color:#000000');
+          if (origin && e.origin !== origin) {
             return;
           }
           if (isFunction(callback)) {
@@ -226,12 +256,14 @@
         }
         EventUtil.add(window, "message", listenerMessage, false);
       },
+
       getIframeEle: getIframeEle,
+
       matchNumber: matchNumber,
     }
   }
 
   var LivePPT$0 = LivePPT;
-  
+
   return LivePPT$0;
 })

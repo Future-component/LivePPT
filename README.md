@@ -42,11 +42,10 @@ LivePPT.addEvent(function(e) {
   switch(e.type) {
     case 'keydown':
       console.log('监听到键盘事件', e);
-      var ele = LivePPT.getIframeEle('ppt-h5', 'customController_skipSlide');
       if (e.keyCode === 39) {
-        sendPPTEvent(Number(ele.value));
+        this.receivePptMsg('next');
       } else if (e.keyCode === 37) {
-        sendPPTEvent(Number(ele.value) - 2);
+        this.receivePptMsg('prev');
       }
       break;
     default:
@@ -59,10 +58,29 @@ LivePPT.receiveEvent('http://127.0.0.1:8081', function(res) {
     roleType: 2,
     data: Object.assign({}, {
       type: 'ppt',
-      name: queryString.name,
     }, res),
   }));
 });
+
+const receivePptMsg = (eventType, slide) => {
+    var data = Object.assign({}, {
+      type: 'ppt',
+    }, {
+      source: "tk_dynamicPPT",
+      data: {
+        type: 'callback',
+        action: 'slideChangeEvent',
+        eventType,
+        slide,
+        stepTotal: 1,
+      },
+    });
+
+    var iframe = window.frames[0];
+    // 传递消息
+    iframe.postMessage(JSON.stringify(data), pptOrigin || cdn.uskid);
+  }
+
 ```
 
 `学生端`
