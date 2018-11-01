@@ -63,22 +63,19 @@ LivePPT.receiveEvent('http://127.0.0.1:8081', function(res) {
 });
 
 const receivePptMsg = (eventType, slide) => {
-    var data = Object.assign({}, {
-      type: 'ppt',
-    }, {
+    var msg = slideGoToPage({
       source: "tk_dynamicPPT",
-      data: {
-        type: 'callback',
-        action: 'slideChangeEvent',
-        eventType,
-        slide,
-        stepTotal: 1,
-      },
+      action: 'slideChangeEvent',
+      eventType,
+      slide,
+      stepTotal: 1,
     });
 
     var iframe = window.frames[0];
     // 传递消息
-    iframe.postMessage(JSON.stringify(data), pptOrigin || cdn.uskid);
+    iframe.postMessage(JSON.stringify(msg), pptOrigin || cdn.uskid);
+
+    this.sendMessage(msg)
   }
 
 ```

@@ -160,18 +160,12 @@
 
     return {
       init: function(res) {
-        if (res.source === 'tk_dynamicPPT') {
-          this.action(res.data);
-        }
-      },
-
-      action: function(res) {
-        switch(res.action) {
-          case 'slideChangeEvent':
-            this.slideChangeEvent(res);
+        switch(res.cmd) {
+          case 'slide-goToPage':
+            this.slideChangeEvent(res.data);
             break;
-          case 'clickNewpptTriggerEvent':
-            // tky课件会自动同步事件
+          case 'slide-click':
+            // tky课件会自动同步事件 'clickNewpptTriggerEvent'
             break;
           default:
             break;
@@ -187,7 +181,7 @@
           var slide = Number(skipSlideEle.value);
           var totalPage = matchNumber(totalSlideSpanEle.innerText)[0];
           if (res.eventType === 'next') {
-          } else if (res.eventType === 'prev') {
+          } else if (res.eventType === 'last') {
             slide = slide - 2;
           }
           if (slide < 0 || slide > totalPage - 1) {
