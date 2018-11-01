@@ -23,7 +23,7 @@
 
 ```js
 var LivePPT = new LivePPT();
-LivePPT.receiveEvent('http://127.0.0.1:8081', function(res) {
+LivePPT.receiveEvent(iframeOrigin, function(res) {
   console.log('ppt接收：', res)
   LivePPT.init(res);
 });
@@ -34,18 +34,25 @@ LivePPT.receiveEvent('http://127.0.0.1:8081', function(res) {
 ```js
 var LivePPT = new LivePPT(
   document.getElementById('ppt-h5'),
-  'http://127.0.0.1:8081/newppt/newppt.html?isLoadPageController=true',
+  `${pptOrigin}/newppt/newppt.html?isLoadPageController=true`,
 );
 
 LivePPT.addEvent(function(e) {
+  console.log('role-addEvent', e)
   // 鼠标在iframe之外的区域打开才OK
   switch(e.type) {
     case 'keydown':
       console.log('监听到键盘事件', e);
       if (e.keyCode === 39) {
-        this.receivePptMsg('next');
+        this.receivePptMsg(slideGoToPage({
+          eventType: 'next',
+          stepTotal: 1,
+        }));
       } else if (e.keyCode === 37) {
-        this.receivePptMsg('prev');
+        this.receivePptMsg(slideGoToPage({
+          eventType: 'last',
+          stepTotal: 1,
+        }));
       }
       break;
     default:
@@ -53,30 +60,23 @@ LivePPT.addEvent(function(e) {
   }
 });
 
-LivePPT.receiveEvent('http://127.0.0.1:8081', function(res) {
-  ws.send(JSON.stringify({
-    roleType: 2,
-    data: Object.assign({}, {
-      type: 'ppt',
-    }, res),
-  }));
+LivePPT.receiveEvent(pptOrigin, function(res) {
+  console.log('role-receiveEvent', res, typeof res);
+  if (res.source === 'tk_dynamicPPT') {
+    this.receivePptMsg(slideGoToPage({
+      slide: res.data.slide,
+      stepTotal: 1,
+    }));
+  }
 });
 
-const receivePptMsg = (eventType, slide) => {
-    var msg = slideGoToPage({
-      source: "tk_dynamicPPT",
-      action: 'slideChangeEvent',
-      eventType,
-      slide,
-      stepTotal: 1,
-    });
+const receivePptMsg = (message) => {
+  var iframe = window.frames[0];
+  // 传递消息
+  iframe.postMessage(JSON.stringify(message), pptOrigin || cdn.uskid);
 
-    var iframe = window.frames[0];
-    // 传递消息
-    iframe.postMessage(JSON.stringify(msg), pptOrigin || cdn.uskid);
-
-    this.sendMessage(msg)
-  }
+  this.sendMessage(message)
+}
 
 ```
 
@@ -85,6 +85,6 @@ const receivePptMsg = (eventType, slide) => {
 ```js
 var LivePPT = new LivePPT(
   document.getElementById('ppt-h5'),
-  'http://127.0.0.1:8081/newppt/newppt.html?isLoadPageController=true&hideCustomPage=true',
+  `${pptOrigin}/newppt/newppt.html?isLoadPageController=true&hideCustomPage=true`,
 );
 ```
