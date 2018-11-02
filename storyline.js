@@ -1,26 +1,26 @@
 /**
- * LivePPT
+ * StorylinePPT
  * 1.0.0
- * Copyright (c) 2018-08-22 11:32:20 Beth
- * 直播调用PPT
+ * Copyright (c) 2018-09-5 11:32:20 Beth
+ * 基于storyline开发的支持拓课云教室的插件
  * depend [no]
  */
 
 /**
  * 问题梳理：
- * 1.两端的页面加载不同步问题
- * 2.标准的数据结构
- * 3.不同端的权限不同
- * 4.如果用户断开之后如何回到上一步上课状态
- * 5.如何处理不同角色PPT的样式
- * 6.PPT转H5本身的问题严重
- * 7.PPT转换是否支持视频和音频
+ * 1.storyline的课件总页数
+ * 2.storyline的事件监听处理
+ * 3.翻页事件监听
+ * 4.点击事件监听
+ * 5.拖拽事件监听
+ * 6.通过postMessage向上级发送消息
+ * 7.禁止学生端操作keydown
  */
 
 (function(global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
-    typeof define === 'function' && define.amd ? define(factory) :
-      (global.LivePPT = factory(global))
+    typeof define === 'function' && define && define.amd ? define(factory) :
+      (global.StorylinePPT = factory(global))
 })(this, function(global) {
   'use strict';
 
@@ -133,6 +133,10 @@
       this.cancelBubble = true;
     };
 
+    function tableAddEvent() {
+
+    };
+
     return {
       add: addEvent,
       remove: removeEvent,
@@ -150,22 +154,85 @@
     return ele;
   }
 
-  function LivePPT(source, id, src){
-    var ele = EventUtil.$(id);
-    if (ele && src) {
-      var width = ele.clientWidth;
-      ele.height = width / (16 / 9);
-      ele.src = src;
+  function simulateClick(ele, downSx, downSy, downCx, downCy, upSx, upSy, upCx, upCy){
+    //点击位置为屏幕中间
+    var w = window.innerWidth/2;
+    var h = window.innerHeight/2;
+    var eventDown = document.createEvent("MouseEvents");
+    eventDown.initMouseEvent("mousedown",
+      true, true,window, 0,
+      downSx || w, downSy || h, downCx || w, downCy || h,
+      false, false, false, false,0, null);
+    var eventUp = document.createEvent("MouseEvents");
+    eventUp.initMouseEvent("mouseup",
+      true, true, window, 0,
+      upSx || w, upSy || h, upCx || w, upCy || h,
+      false, false, false, false, 0, null);
+    ele.dispatchEvent(eventDown);
+    ele.dispatchEvent(eventUp);
+  }
+
+  var topWinow = (function(){
+    var p = window.parent;
+    var pAry = [p];
+    while(p != p.window.parent){
+      p = p.window.parent;
+      pAry.push(p);
     }
+    return {
+      top: p || window.top,
+      arr: pAry,
+    };
+  })();
+
+  var eventAry = ['mousedown', 'keydown'];
+
+  function StorylinePPT(source, id) {
 
     return {
+      // 保留，无用
+      initAction: function(e) {
+        if (eventAry.indexOf(e.type) > -1) {
+          var data = null;
+          if ((e.type === 'mousedown' || e.type === 'click') && e.target.id) {
+            data = {
+              cmd: 'slide-click',
+              isTrusted: true,
+              data: {
+                id: e.target.id,
+              },
+            };
+          } else if (e.type === 'keydown' && e.keyCode === 39) {
+            data = {
+              cmd: 'slide-goToPage',
+              isTrusted: true,
+              data: {
+                eventType: 'next'
+              },
+            };
+          } else if (e.type === 'keydown' && e.keyCode === 37) {
+            data = {
+              cmd: 'slide-goToPage',
+              isTrusted: true,
+              data: {
+                eventType: 'last'
+              },
+            }
+          }
+
+          if (data) {
+            topWinow.top.postMessage(JSON.stringify(data), '*');
+          }
+        }
+      },
+
       init: function(res) {
         switch(res.cmd) {
           case 'slide-goToPage':
             this.slideChangeEvent(res.data);
             break;
           case 'slide-click':
-            // tky课件会自动同步事件 'clickNewpptTriggerEvent'
+            this.clickEvent(res.data.id);
             break;
           default:
             break;
@@ -173,52 +240,54 @@
       },
 
       slideChangeEvent: function(res) {
-        if (res.slide) {
-          this.jumpPage(res.slide + res.stepTotal);
-        } else if (res.eventType) {
-          var skipSlideEle = EventUtil.$('customController_skipSlide');
-          var totalSlideSpanEle = EventUtil.$('customController_totalSlideSpan');
-          var slide = Number(skipSlideEle.value);
-          var totalPage = matchNumber(totalSlideSpanEle.innerText)[0];
-          if (res.eventType === 'next') {
-          } else if (res.eventType === 'last') {
-            slide = slide - 2;
-          }
-          if (slide < 0 || slide > totalPage - 1) {
-            console.error('非法输入')
-          } else {
-            this.jumpPage(slide + res.stepTotal);
-          }
+        if (res.eventType === 'next') {
+          this.slideNextPage();
+        } else if (res.eventType === 'last') {
+          this.slidePreviousPage();
         }
       },
 
-      jumpPage: function(page) {
-        var skipEle = EventUtil.$('customController_skipSlide');
-        skipEle.innerText = page;
-        window.GLOBAL.ServiceNewPptAynamicPPT.clearOldSlideInfo();
-        window.GLOBAL.ServiceNewPptAynamicPPT.playbackController.gotoTimestamp(Number(page) - 1, 0, 0, !0, {
-          initiative: !0
-        })
+      slideNextPage: function() {
+        console.log('手动-slideNextPage');
+        var event = new KeyboardEvent("keydown",{
+          keyCode: 39,
+        });
+        document.body.dispatchEvent(event);
       },
 
-      getSkipSlideElement: function() {
-        return getIframeEle(id, 'customController_skipSlide');
+      slidePreviousPage: function() {
+        console.log('手动-slidePreviousPage');
+        var event = new KeyboardEvent("keydown",{
+          keyCode: 37,
+        });
+        document.body.dispatchEvent(event);
+      },
+
+      clickEvent: function(id) {
+        console.log('手动-clickEvent');
+        simulateClick(EventUtil.$(id))
       },
 
       addEvent: function(callback) {
         console.log(`%c ${source} addEvent`,'background:#aaa;color:#bada55');
         function listenerEvent(e) {
           console.log(`%c isTrusted: ${e.isTrusted}`,'background:#aaa;color:#000000');
-          if (isFunction(callback)) {
-            callback(e);
-          }
           if (e.isTrusted) {
-            console.log(e.target.id)
+            if (isFunction(callback)) {
+              callback(e);
+            }
+            console.log('正常触发', e.target.id)
+          } else {
+            console.log('模拟触发')
           }
         }
+
         EventUtil.add(EventUtil.$(id), 'click', listenerEvent, false)
         EventUtil.add(EventUtil.$(id), 'mousedown', listenerEvent, false)
         EventUtil.add(window, 'keydown', listenerEvent, false)
+        EventUtil.add(window, 'keyup', listenerEvent, false)
+        EventUtil.add(document, 'keydown', listenerEvent, false)
+        EventUtil.add(document, 'keyup', listenerEvent, false)
       },
 
       receiveEvent: function(origin, callback) {
@@ -242,7 +311,7 @@
     }
   }
 
-  var LivePPT$0 = LivePPT;
+  var StorylinePPT$0 = StorylinePPT;
 
-  return LivePPT$0;
+  return StorylinePPT$0;
 })
