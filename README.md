@@ -87,6 +87,6 @@ const receivePptMsg = (message) => {
 var LivePPT = new LivePPT(
   'student',
   'uskid-ppt',
-  pptOrigin + '/newppt.html?isLoadPageController=true',
+  pptOrigin + '/newppt.html?isLoadPageController=true&hideCustomPage=true',
 );
 ```
