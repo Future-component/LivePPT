@@ -6,7 +6,7 @@
 * 清晰
 * 正确
 
-## 基于拓课云的公共方法修改
+## 基于拓课云的公共课件内容修改
 
 ### 样式修改
 ```html
@@ -61,9 +61,25 @@ window.GLOBAL.loadScript(playerUrl);
 window.GLOBAL.loadScript(newpptUrl);
 ```
 
+### 脚本修改
+```js
+// var playerUrl = '../../Public/js/player.js?remoteNewpptUpdateTime=' + (window.GLOBAL.getUrlParams(
+// 'remoteNewpptUpdateTime') || new Date().getTime());
+// var newpptUrl = '../../Public/js/newppt.js?remoteNewpptUpdateTime=' + (window.GLOBAL.getUrlParams(
+// 'remoteNewpptUpdateTime') || new Date().getTime());
+
+var playerUrl = 'https://demodoc.talk-cloud.net/Public/js/player.js?remoteNewpptUpdateTime=' + (window.GLOBAL.getUrlParams(
+    'remoteNewpptUpdateTime') || new Date().getTime());
+var newpptUrl = 'https://demodoc.talk-cloud.net/Public/js/newppt.js?remoteNewpptUpdateTime=' + (window.GLOBAL.getUrlParams(
+    'remoteNewpptUpdateTime') || new Date().getTime());
+
+window.GLOBAL.loadScript(playerUrl);
+window.GLOBAL.loadScript(newpptUrl);
+```
+
 ### 额外脚本添加
 ```html
-<script src="http://index.uskid.tech:8082/livePPT-1.0.0.js?t=18"></script>
+<script src="<%= cdn.uskid %>/lib/livePPT-1.0.0.js?t=<%= new Date().getTime() %>"></script>
 <script>
   var LivePPT = new LivePPT('newppt');
   LivePPT.receiveEvent(null, function(res) {
@@ -74,11 +90,11 @@ window.GLOBAL.loadScript(newpptUrl);
 </script>
 ```
 
-## 基于Storyline的公共方法修改
+## 基于Storyline的公共课件内容修改
 
 ### 额外脚本添加
 ```html
-<script src="http://index.uskid.tech:8082/StorylinePPT-1.0.0.js"></script>
+<script src="<%= cdn.uskid %>/lib/storylinePPT-1.0.0.js?t=<%= new Date().getTime() %>"></script>
 <script>
   var storylinePPT = new StorylinePPT('storyline', 'preso');
 
@@ -94,4 +110,7 @@ window.GLOBAL.loadScript(newpptUrl);
     }
   });
 </script>
+
+// 修改执行顺序
+<script data-main="app/scripts/init.generated" src="/html5/lib/scripts/app.min.js"></script>
 ```
